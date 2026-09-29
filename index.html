@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#090a0c]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledger | Institutional Review Memory System</title>
+
+    <!-- Custom Domain Favicon (SVG) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='2' fill='%23090a0c'/><rect x='6' y='6' width='20' height='20' fill='none' stroke='%23f4f4f5' stroke-width='2.5'/><line x1='6' y1='16' x2='26' y2='16' stroke='%23f4f4f5' stroke-width='2.5'/><circle cx='16' cy='11' r='2' fill='%2310b981'/></svg>">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+                    },
+                    colors: {
+                        canvas: '#090a0c',
+                        panel: '#0f1115',
+                        surface: '#14171d',
+                        'surface-raised': '#1a1e26',
+                        line: '#232833',
+                        'line-light': '#323946',
+                    },
+                    borderRadius: {
+                        'none': '0px',
+                        'xs': '1px',
+                        'sm': '2px',
+                        'DEFAULT': '3px',
+                        'md': '4px',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            background-color: #090a0c;
+            color: #d1d5db;
+            font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
+        }
+
+        /* Technical subtle background grid for high-density depth */
+        .grid-bg {
+            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        /* Precise Developer Tool Scrollbars */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #090a0c; }
+        ::-webkit-scrollbar-thumb { background: #232833; border-radius: 1px; }
+        ::-webkit-scrollbar-thumb:hover { background: #323946; }
+
+        /* Code Syntax Highlighting Classes */
+        .token-kwd { color: #f43f5e; font-weight: 500; }
+        .token-fn { color: #38bdf8; }
+        .token-str { color: #34d399; }
+        .token-num { color: #fbbf24; }
+        .token-type { color: #818cf8; }
+        .token-comment { color: #64748b; font-style: italic; }
+        .token-punct { color: #94a3b8; }
+        .token-prop { color: #e2e8f0; }
+
+        /* Diff styling */
+        .diff-row-added { background-color: rgba(16, 185, 129, 0.07); }
+        .diff-row-removed { background-color: rgba(244, 63, 94, 0.07); }
+        .diff-row-flagged { background-color: rgba(245, 158, 11, 0.09); }
+        .gutter-cell { width: 44px; text-align: right; user-select: none; color: #475569; padding-right: 12px; }
+
+        /* Modal backdrop */
+        .backdrop-overlay { background: rgba(9, 10, 12, 0.88); backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body class="h-full overflow-hidden flex flex-col antialiased text-xs font-sans">
+
+    <!-- TOP SYSTEM STATUS & REPO SWITCHER -->
+    <header class="h-11 border-b border-line bg-panel flex items-center justify-between px-3.5 z-30 flex-shrink-0">
+        <div class="flex items-center space-x-3.5">
+            <!-- Brand Mark -->
+            <div class="flex items-center space-x-2">
+                <div class="w-5 h-5 bg-zinc-900 border border-line-light rounded-sm flex items-center justify-center">
+                    <div class="w-2.5 h-0.5 bg-zinc-100"></div>
+                </div>
+                <span class="font-mono font-bold tracking-wider text-zinc-100 text-xs">LEDGER</span>
+                <span class="text-[10px] font-mono text-zinc-500 px-1 py-0.5 border border-line rounded-sm">MEM_TIER_ACTIVE</span>
+            </div>
+
+            <div class="h-3 w-px bg-line"></div>
+
+            <!-- Repository Picker -->
+            <div class="flex items-center space-x-2">
+                <span class="text-[10px] font-mono text-zinc-500 uppercase">Target:</span>
+                <div class="relative">
+                    <select id="repo-select" onchange="handleRepoSwitch(this.value)" class="bg-surface border border-line hover:border-line-light text-zinc-200 text-xs rounded-sm pl-2 pr-6 py-1 font-mono outline-none cursor-pointer appearance-none">
+                        <option value="core-billing">enterprise / core-billing-service</option>
+                        <option value="auth-proxy">enterprise / auth-proxy-cluster</option>
+                        <option value="data-lake">enterprise / streaming-lakehouse</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-zinc-500">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Memory Health Pill -->
+            <div class="hidden lg:flex items-center space-x-2 text-[11px] font-mono px-2 py-0.5 bg-surface border border-line rounded-sm text-zinc-400">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span>Active Indices: 4 Rules | 3 Profiles | 14 Precedents</span>
+            </div>
+        </div>
+
+        <!-- Right System Actions -->
+        <div class="flex items-center space-x-2.5">
+            <button onclick="openCommandPalette()" class="flex items-center space-x-2 px-2 py-1 bg-surface hover:bg-surface-raised border border-line hover:border-line-light text-zinc-300 rounded-sm font-mono text-[11px] transition-colors">
+                <svg class="w-3 h-3 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>Command Menu</span>
+                <kbd class="px-1 py-0.2 bg-zinc-900 border border-line text-zinc-400 rounded text-[9px]">Ctrl+K</kbd>
+            </button>
+            <div class="h-3 w-px bg-line"></div>
+            <div class="flex items-center space-x-1.5 font-mono text-[10px] text-zinc-500">
+                <span class="w-1.5 h-1.5 bg-emerald-500/80 rounded-full"></span>
+                <span>GITHUB APP CONNECTED</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- WORKSPACE BODY: SIDEBAR + MAIN STAGE -->
+    <div class="flex-1 flex overflow-hidden">
+
+        <!-- PRIMARY SIDEBAR -->
+        <aside class="w-64 border-r border-line bg-panel flex flex-col justify-between flex-shrink-0">
+            <div class="p-2 space-y-4 overflow-y-auto">
+
+                <!-- REVIEW WORKSPACE -->
+                <div>
+                    <div class="px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-semibold">Active Review</div>
+                    <div class="space-y-0.5 mt-1">
+                        <button onclick="navigate('inspector')" id="nav-inspector" class="nav-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-sm bg-surface border border-line text-zinc-100 font-medium">
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7M6 9v12"/></svg>
+                                <span>Diff Inspector</span>
+                            </div>
+                            <span class="font-mono text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 px-1 rounded-sm" id="nav-flag-count">2</span>
+                        </button>
+                        <button onclick="navigate('prs')" id="nav-prs" class="nav-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-200 border border-transparent">
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                <span>PR Audit Queue</span>
+                            </div>
+                            <span class="font-mono text-[10px] text-zinc-500">3 open</span>
+                        </button>
+                        <button onclick="navigate('live-graph')" id="nav-live-graph" class="nav-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-200 border border-transparent">
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                                <span>Memory Graph</span>
+                            </div>
+                            <span class="font-mono text-[9px] text-emerald-400 px-1 bg-emerald-500/10 border border-emerald-500/20 rounded-sm">LIVE</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PERSISTENT MEMORY TIERS -->
+                <div>
+                    <div class="px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-semibold">Memory Hierarchy</div>
+                    <div class="space-y-0.5 mt-1">
+                        <button onclick="navigate('tier1')" id="nav-tier1" class="nav-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-200 border border-transparent">
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                                <span>Tier 1: Team Rules</span>
+                            </div>
+                            <span class="font-mono text-[10px] text-zinc-500" id="tier1-sidebar-count">4 rules</span>
+                        </button>
+                        <button onclick="navigate('tier2')" id="nav-tier2" class="nav-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-200 border border-transparent">
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                <span>Tier 2: Habit Matrix</span>
+                            </div>
+                            <span class="font-mono text-[10px] text-zinc-500">3 devs</span>
+                        </button>
+                        <button onclick="navigate('tier3')" id="nav-tier3" class="nav-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-200 border border-transparent">
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                                <span>Tier 3: Precedents</span>
+                            </div>
+                            <span class="font-mono text-[10px] text-zinc-500">14 logs</span>
+                        </button>
+                        <button onclick="navigate('calibration')" id="nav-calibration" class="nav-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-200 border border-transparent">
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                <span>Calibration Stream</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TOOLS & PLAYGROUND -->
+                <div>
+                    <div class="px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-semibold">Testing Sandbox</div>
+                    <div class="space-y-0.5 mt-1">
+                        <button onclick="navigate('sandbox')" id="nav-sandbox" class="nav-item w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-200 border border-transparent">
+                            <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                            <span>Diff Test Sandbox</span>
+                        </button>
+                        <button onclick="navigate('pipeline')" id="nav-pipeline" class="nav-item w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-200 border border-transparent">
+                            <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                            <span>CI Workflow Config</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOOTER LEGAL & SETTINGS -->
+            <div class="p-2 border-t border-line bg-panel space-y-0.5">
+                <button onclick="navigate('settings')" id="nav-settings" class="nav-item w-full flex items-center space-x-2 px-2 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-200 border border-transparent">
+                    <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <span>System Settings</span>
+                </button>
+                <button onclick="navigate('privacy')" id="nav-privacy" class="nav-item w-full flex items-center space-x-2 px-2 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-200 border border-transparent">
+                    <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <span>Privacy Policy</span>
+                </button>
+                <button onclick="navigate('terms')" id="nav-terms" class="nav-item w-full flex items-center space-x-2 px-2 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-200 border border-transparent">
+                    <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <span>Terms & Conditions</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN VIEWPORT -->
+        <main class="flex-1 flex flex-col min-w-0 overflow-hidden bg-canvas">
+
+            <!-- =========================================================
+                 VIEW: DIFF INSPECTOR (WORKSPACE)
+                 ========================================================= -->
+            <div id="view-inspector" class="view-panel h-full flex flex-col">
+                <!-- PR Header Row -->
+                <div class="h-12 border-b border-line bg-panel px-4 flex items-center justify-between flex-shrink-0">
+                    <div class="flex items-center space-x-3 overflow-hidden">
+                        <span class="font-mono text-xs px-2 py-0.5 bg-surface border border-line text-zinc-200 rounded-sm">PR #1042</span>
+                        <h1 class="text-xs font-semibold text-zinc-100 truncate">Fix retry timeout and payment telemetry error logging</h1>
+                        <span class="text-xs font-mono text-zinc-500 hidden md:inline">author: @alex-chen into main</span>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <div class="flex border border-line rounded-sm overflow-hidden text-xs">
+                            <button id="btn-unified" onclick="setDiffView('unified')" class="px-2.5 py-1 bg-surface text-zinc-100 font-mono text-[11px]">Unified</button>
+                            <button id="btn-split" onclick="setDiffView('split')" class="px-2.5 py-1 bg-panel text-zinc-500 hover:text-zinc-300 font-mono text-[11px]">Split</button>
+                        </div>
+                        <button onclick="runAuditSequence()" id="btn-audit" class="px-3 py-1 bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold rounded-sm transition-colors flex items-center space-x-1.5 shadow-sm">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <span>Trigger Ledger Review</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Three-Pane Workspace: Files | Diff View | Memory Analysis -->
+                <div class="flex-1 flex overflow-hidden">
+
+                    <!-- File Navigation Subtree -->
+                    <div class="w-60 border-r border-line bg-panel flex flex-col flex-shrink-0">
+                        <div class="p-2 border-b border-line text-[10px] font-mono text-zinc-500 font-semibold uppercase flex justify-between items-center">
+                            <span>Modified Files (2)</span>
+                            <span class="text-zinc-600">+8 -2</span>
+                        </div>
+                        <div class="p-1 space-y-0.5 text-xs font-mono">
+                            <button onclick="changeFile(0)" id="file-btn-0" class="w-full text-left px-2 py-1.5 rounded-sm bg-surface text-zinc-200 border border-line flex items-center justify-between">
+                                <div class="flex items-center space-x-1.5 truncate">
+                                    <svg class="w-3 h-3 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+                                    <span class="truncate">payment_processor.ts</span>
+                                </div>
+                                <span class="text-[9px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1 rounded-sm">2 flags</span>
+                            </button>
+                            <button onclick="changeFile(1)" id="file-btn-1" class="w-full text-left px-2 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-300 border border-transparent flex items-center justify-between">
+                                <div class="flex items-center space-x-1.5 truncate">
+                                    <svg class="w-3 h-3 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+                                    <span class="truncate">billing_routes.ts</span>
+                                </div>
+                                <span class="text-[9px] font-mono text-zinc-600">0 flags</span>
+                            </button>
+                        </div>
+
+                        <!-- Developer Profile Quick Card in Workspace -->
+                        <div class="mt-auto p-3 border-t border-line bg-surface space-y-2">
+                            <div class="text-[10px] font-mono uppercase text-zinc-500 font-semibold flex items-center justify-between">
+                                <span>Author Habits (@alex)</span>
+                                <span class="text-zinc-600">Tier 2</span>
+                            </div>
+                            <div class="space-y-1 text-[11px] text-zinc-400 font-mono">
+                                <div class="flex items-center justify-between p-1 bg-panel border border-line rounded-sm">
+                                    <span>Catch block telemetry</span>
+                                    <span class="text-amber-400 font-bold">3x recur</span>
+                                </div>
+                                <div class="flex items-center justify-between p-1 bg-panel border border-line rounded-sm">
+                                    <span>Unconstrained timeout</span>
+                                    <span class="text-amber-400 font-bold">2x recur</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Code Diff View Area with Syntax Highlighting -->
+                    <div class="flex-1 flex flex-col bg-canvas overflow-hidden border-r border-line">
+                        <div class="h-8 border-b border-line bg-surface px-4 flex items-center justify-between flex-shrink-0 text-xs text-zinc-400">
+                            <span class="font-mono text-[11px]" id="diff-file-title">src/services/billing/payment_processor.ts</span>
+                            <div class="flex items-center space-x-3 text-[11px] font-mono text-zinc-500">
+                                <span>AST Context: StripeGatewayHandler</span>
+                                <span>TypeScript</span>
+                            </div>
+                        </div>
+
+                        <!-- Syntax Highlighted Unified Diff Rows with Inline Thread Expansion -->
+                        <div class="flex-1 overflow-auto font-mono text-xs leading-5" id="diff-table-container">
+                            <!-- Populated dynamically via JS with exact tokens and inline threads -->
+                        </div>
+                    </div>
+
+                    <!-- Right Memory Engine Analysis Panel -->
+                    <div class="w-96 flex-shrink-0 flex flex-col bg-panel overflow-hidden">
+                        <div class="h-8 border-b border-line bg-surface px-3 flex items-center justify-between flex-shrink-0">
+                            <span class="text-xs font-semibold text-zinc-200 flex items-center space-x-1.5">
+                                <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                                <span>Memory Findings</span>
+                            </span>
+                            <span class="text-[10px] font-mono text-zinc-500" id="engine-status-text">Confidence: 0.98</span>
+                        </div>
+
+                        <div class="flex-1 overflow-auto p-3 space-y-3" id="inspector-cards-container">
+                            <!-- Dynamic Cards populated via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =========================================================
+                 VIEW: MEMORY GRAPH VISUALIZER (3-TIER CONVERGENCE)
+                 ========================================================= -->
+            <div id="view-live-graph" class="view-panel h-full hidden p-6 overflow-auto">
+                <div class="max-w-5xl space-y-6">
+                    <div>
+                        <h1 class="text-base font-semibold text-zinc-100">Three-Tier Memory Convergence Architecture</h1>
+                        <p class="text-xs text-zinc-500 mt-0.5">Visual depiction of how Ledger evaluates an incoming AST node against all 3 persistent memory layers to generate authoritative reviews.</p>
+                    </div>
+
+                    <div class="border border-line bg-panel p-6 rounded-sm space-y-6 grid-bg">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- Tier 1 Box -->
+                            <div class="p-4 bg-surface border border-line rounded-sm space-y-3">
+                                <div class="flex items-center justify-between pb-2 border-b border-line">
+                                    <span class="font-mono text-xs font-bold text-zinc-200">TIER 1: GLOBAL RULES</span>
+                                    <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1 border border-emerald-500/20 rounded-sm">Weight: 1.0</span>
+                                </div>
+                                <p class="text-xs text-zinc-400">
+                                    Codified team standards derived from architecture RFCs and postmortems.
+                                </p>
+                                <div class="p-2 bg-canvas border border-line rounded-sm text-[11px] font-mono text-zinc-300">
+                                    Rule #082: Telemetry.captureException required in payment catch blocks.
+                                </div>
+                            </div>
+
+                            <!-- Tier 2 Box -->
+                            <div class="p-4 bg-surface border border-line rounded-sm space-y-3">
+                                <div class="flex items-center justify-between pb-2 border-b border-line">
+                                    <span class="font-mono text-xs font-bold text-zinc-200">TIER 2: HABIT PROFILES</span>
+                                    <span class="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1 border border-amber-500/20 rounded-sm">Weight: 0.85</span>
+                                </div>
+                                <p class="text-xs text-zinc-400">
+                                    Scoped blindspot vectors per author to focus review passes on recurring weaknesses.
+                                </p>
+                                <div class="p-2 bg-canvas border border-line rounded-sm text-[11px] font-mono text-zinc-300">
+                                    Author @alex-chen: Recurring omission of telemetry in payment services (3x).
+                                </div>
+                            </div>
+
+                            <!-- Tier 3 Box -->
+                            <div class="p-4 bg-surface border border-line rounded-sm space-y-3">
+                                <div class="flex items-center justify-between pb-2 border-b border-line">
+                                    <span class="font-mono text-xs font-bold text-zinc-200">TIER 3: PAST DECISIONS</span>
+                                    <span class="text-[10px] font-mono text-sky-400 bg-sky-500/10 px-1 border border-sky-500/20 rounded-sm">Weight: 0.92</span>
+                                </div>
+                                <p class="text-xs text-zinc-400">
+                                    Vector database of past review comment resolutions and engineering consensus.
+                                </p>
+                                <div class="p-2 bg-canvas border border-line rounded-sm text-[11px] font-mono text-zinc-300">
+                                    PR-870: "3000ms max timeout agreed to prevent upstream ALB starvation."
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Synthesized Review Node -->
+                        <div class="p-4 bg-surface-raised border border-line-light rounded-sm space-y-2">
+                            <div class="flex items-center space-x-2 font-mono text-xs font-bold text-zinc-100">
+                                <span class="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                                <span>SYNTHESIZED ACTIONABLE REVIEW OUTPUT</span>
+                            </div>
+                            <div class="text-xs text-zinc-300 font-mono bg-canvas p-3 border border-line rounded-sm leading-relaxed">
+                                Line 49: Block PR merge. Direct console.error is prohibited by Tier 1 standard (#082). Replace with Telemetry.captureException(err). Corroborated by author history vector and past outage consensus PR-441.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =========================================================
+                 VIEW: PR AUDIT QUEUE
+                 ========================================================= -->
+            <div id="view-prs" class="view-panel h-full hidden p-6 overflow-auto">
+                <div class="max-w-5xl space-y-6">
+                    <div>
+                        <h1 class="text-base font-semibold text-zinc-100">Monitored Pull Request Queue</h1>
+                        <p class="text-xs text-zinc-500 mt-0.5">Real-time repository PR feed synchronized with the Ledger review webhook listener.</p>
+                    </div>
+
+                    <div class="border border-line bg-panel rounded-sm overflow-hidden">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-line text-zinc-500 bg-surface font-mono text-[11px]">
+                                    <th class="py-2.5 px-4 font-medium w-20">PR ID</th>
+                                    <th class="py-2.5 px-4 font-medium">Title & Branch Information</th>
+                                    <th class="py-2.5 px-4 font-medium w-36">Author</th>
+                                    <th class="py-2.5 px-4 font-medium w-36">Memory Audit Result</th>
+                                    <th class="py-2.5 px-4 font-medium w-24">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-line text-zinc-300 font-mono">
+                                <tr class="hover:bg-surface/50">
+                                    <td class="py-3 px-4 text-zinc-400">#1042</td>
+                                    <td class="py-3 px-4 font-sans">
+                                        <div class="text-zinc-100 font-medium">Fix retry timeout and payment telemetry error logging</div>
+                                        <div class="text-zinc-500 text-[11px] font-mono mt-0.5">branch: fix/stripe-telemetry into main</div>
+                                    </td>
+                                    <td class="py-3 px-4 text-zinc-400">@alex-chen</td>
+                                    <td class="py-3 px-4 font-sans"><span class="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-sm border border-amber-500/20 text-[11px]">2 Findings (1 Blocker)</span></td>
+                                    <td class="py-3 px-4 font-sans"><button onclick="navigate('inspector')" class="text-zinc-100 hover:underline text-xs">Inspect</button></td>
+                                </tr>
+                                <tr class="hover:bg-surface/50">
+                                    <td class="py-3 px-4 text-zinc-400">#1041</td>
+                                    <td class="py-3 px-4 font-sans">
+                                        <div class="text-zinc-100 font-medium">Migrate session table to redis cluster schema v2</div>
+                                        <div class="text-zinc-500 text-[11px] font-mono mt-0.5">branch: feat/redis-cluster into main</div>
+                                    </td>
+                                    <td class="py-3 px-4 text-zinc-400">@sarah-connor</td>
+                                    <td class="py-3 px-4 font-sans"><span class="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-sm border border-emerald-500/20 text-[11px]">Clean (0 Violations)</span></td>
+                                    <td class="py-3 px-4 font-sans"><span class="text-zinc-600 text-xs">Approved</span></td>
+                                </tr>
+                                <tr class="hover:bg-surface/50">
+                                    <td class="py-3 px-4 text-zinc-400">#1040</td>
+                                    <td class="py-3 px-4 font-sans">
+                                        <div class="text-zinc-100 font-medium">Add tenant isolation check on invoice export endpoint</div>
+                                        <div class="text-zinc-500 text-[11px] font-mono mt-0.5">branch: sec/tenant-invoice-check into main</div>
+                                    </td>
+                                    <td class="py-3 px-4 text-zinc-400">@marcus-v</td>
+                                    <td class="py-3 px-4 font-sans"><span class="text-red-400 bg-red-500/10 px-2 py-0.5 rounded-sm border border-red-500/20 text-[11px]">1 Blocker (Security)</span></td>
+                                    <td class="py-3 px-4 font-sans"><button onclick="alert('Viewing PR #1040 details')" class="text-zinc-400 hover:text-white underline text-xs">Inspect</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =========================================================
+                 VIEW: TIER 1 RULES (TEAM STANDARDS)
+                 ========================================================= -->
+            <div id="view-tier1" class="view-panel h-full hidden p-6 overflow-auto">
+                <div class="max-w-5xl space-y-6">
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <h1 class="text-base font-semibold text-zinc-100">Tier 1: Institutional Team Standards</h1>
+                            <p class="text-xs text-zinc-500 mt-0.5">Global architectural patterns and mandatory conventions enforced on every pull request.</p>
+                        </div>
+                        <button onclick="openNewRuleModal()" class="px-3 py-1.5 bg-zinc-100 text-zinc-950 hover:bg-white text-xs font-semibold rounded-sm transition-colors">
+                            + Add Team Standard
+                        </button>
+                    </div>
+
+                    <div class="border border-line bg-panel rounded-sm overflow-hidden">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-line text-zinc-500 bg-surface font-mono text-[11px]">
+                                    <th class="py-2.5 px-4 font-medium w-16">ID</th>
+                                    <th class="py-2.5 px-4 font-medium">Standard Description</th>
+                                    <th class="py-2.5 px-4 font-medium w-28">Source PR</th>
+                                    <th class="py-2.5 px-4 font-medium w-28">Enforcement</th>
+                                    <th class="py-2.5 px-4 font-medium w-24">Weight</th>
+                                    <th class="py-2.5 px-4 font-medium w-20">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-line text-zinc-300" id="tier1-rules-tbody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =========================================================
+                 VIEW: TIER 2 HABIT MATRIX
+                 ========================================================= -->
+            <div id="view-tier2" class="view-panel h-full hidden p-6 overflow-auto">
+                <div class="max-w-5xl space-y-6">
+                    <div>
+                        <h1 class="text-base font-semibold text-zinc-100">Tier 2: Developer Habit Profiles</h1>
+                        <p class="text-xs text-zinc-500 mt-0.5">Persistent behavioral vectors that map individual author recurring friction points to accelerate review precision.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Dev Profile 1 -->
+                        <div class="border border-line bg-panel p-4 rounded-sm space-y-4">
+                            <div class="flex justify-between items-start pb-3 border-b border-line">
+                                <div>
+                                    <span class="font-semibold text-sm text-zinc-100">Developer: @alex-chen</span>
+                                    <span class="block text-[11px] text-zinc-500 font-mono mt-0.5">Focus: Payment Gateway, Node.js, TypeScript</span>
+                                </div>
+                                <span class="text-xs font-mono text-zinc-400 bg-surface px-2 py-0.5 rounded-sm border border-line">14 PRs indexed</span>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-mono uppercase text-zinc-500 font-semibold mb-2">Recurring Friction Vectors</div>
+                                <div class="space-y-2 text-xs">
+                                    <div class="flex justify-between items-center p-2.5 bg-canvas border border-line rounded-sm">
+                                        <span class="text-zinc-300">Direct console.error inside try-catch blocks</span>
+                                        <span class="text-red-400 font-mono text-[11px]">3 occurrences</span>
+                                    </div>
+                                    <div class="flex justify-between items-center p-2.5 bg-canvas border border-line rounded-sm">
+                                        <span class="text-zinc-300">Unconstrained HTTP timeouts on third party fetch</span>
+                                        <span class="text-amber-400 font-mono text-[11px]">2 occurrences</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t border-line flex justify-between items-center text-[11px] text-zinc-400 font-mono">
+                                <span>Pre-flight Focus: Error Telemetry, Network resilience</span>
+                                <button onclick="alert('Exported customized pre-commit linter for @alex-chen')" class="text-zinc-300 hover:text-white underline text-[10px]">Export Hook</button>
+                            </div>
+                        </div>
+
+                        <!-- Dev Profile 2 -->
+                        <div class="border border-line bg-panel p-4 rounded-sm space-y-4">
+                            <div class="flex justify-between items-start pb-3 border-b border-line">
+                                <div>
+                                    <span class="font-semibold text-sm text-zinc-100">Developer: @sarah-connor</span>
+                                    <span class="block text-[11px] text-zinc-500 font-mono mt-0.5">Focus: PostgreSQL, Redis Daemons, Go</span>
+                                </div>
+                                <span class="text-xs font-mono text-zinc-400 bg-surface px-2 py-0.5 rounded-sm border border-line">28 PRs indexed</span>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-mono uppercase text-zinc-500 font-semibold mb-2">Recurring Friction Vectors</div>
+                                <div class="space-y-2 text-xs">
+                                    <div class="flex justify-between items-center p-2.5 bg-canvas border border-line rounded-sm">
+                                        <span class="text-zinc-300">Missing schema rollback script on migrations</span>
+                                        <span class="text-amber-400 font-mono text-[11px]">1 occurrence</span>
+                                    </div>
+                                    <div class="flex justify-between items-center p-2.5 bg-canvas border border-line rounded-sm">
+                                        <span class="text-zinc-300">Redis lock acquisition without TTL timeout</span>
+                                        <span class="text-amber-400 font-mono text-[11px]">1 occurrence</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t border-line flex justify-between items-center text-[11px] text-zinc-400 font-mono">
+                                <span>Pre-flight Focus: Database Migrations, Distributed Lock Safety</span>
+                                <button onclick="alert('Exported customized pre-commit linter for @sarah-connor')" class="text-zinc-300 hover:text-white underline text-[10px]">Export Hook</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =========================================================
+                 VIEW: TIER 3 DECISIONS & PRECEDENTS
+                 ========================================================= -->
+            <div id="view-tier3" class="view-panel h-full hidden p-6 overflow-auto">
+                <div class="max-w-4xl space-y-6">
+                    <div>
+                        <h1 class="text-base font-semibold text-zinc-100">Tier 3: Past Review Decisions & Consensus Logs</h1>
+                        <p class="text-xs text-zinc-500 mt-0.5">Semantic database of historical PR debates, consensus outcomes, and approved architectural trade-offs.</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="border border-line bg-panel p-4 rounded-sm space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="font-mono text-xs text-zinc-200 font-medium">PR #870: Standardize downstream HTTP timeouts</span>
+                                <span class="text-[11px] text-zinc-500 font-mono">Recorded: 2026-08-14</span>
+                            </div>
+                            <p class="text-xs text-zinc-300 leading-relaxed">
+                                "We agreed that 5000ms is too high for billing upstream because our ALB drops connections at 6000ms. All third party integrations must target 3000ms maximum timeout."
+                            </p>
+                            <div class="text-[11px] text-zinc-500 font-mono flex items-center space-x-2 pt-2 border-t border-line">
+                                <span>Consensus Authors: @tech-lead, @alex-chen</span>
+                                <span>|</span>
+                                <span>Vector Match Similarity: 0.94</span>
+                            </div>
+                        </div>
+
+                        <div class="border border-line bg-panel p-4 rounded-sm space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="font-mono text-xs text-zinc-200 font-medium">PR #441: Datadog logging pipeline migration</span>
+                                <span class="text-[11px] text-zinc-500 font-mono">Recorded: 2026-05-22</span>
+                            </div>
+                            <p class="text-xs text-zinc-300 leading-relaxed">
+                                "Raw console.error calls in Kubernetes pods are dropped because the log collector only processes structured JSON streams. Make Telemetry.captureException mandatory across all services."
+                            </p>
+                            <div class="text-[11px] text-zinc-500 font-mono flex items-center space-x-2 pt-2 border-t border-line">
+                                <span>Consensus Authors: @infra-core</span>
+                                <span>|</span>
+                                <span>Vector Match Similarity: 0.98</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =========================================================
+                 VIEW: CALIBRATION STREAM
+                 ========================================================= -->
+            <div id="view-calibration" class="view-panel h-full hidden p-6 overflow-auto">
+                <div class="max-w-4xl space-y-6">
+                    <div>
+                        <h1 class="text-base font-semibold text-zinc-100">Live Memory Calibration Stream</h1>
+                        <p class="text-xs text-zinc-500 mt-0.5">Real-time audit log of rule confidence adjustments, habit increments, and negative constraints learned from human feedback.</p>
+                    </div>
+
+                    <div class="border border-line bg-panel rounded-sm p-4 font-mono text-xs space-y-3 divide-y divide-line" id="calibration-log-list">
+                        <div class="pt-2 first:pt-0 flex items-start space-x-3 text-zinc-300">
+                            <span class="text-zinc-500 flex-shrink-0">14:02:11</span>
+                            <span class="text-emerald-400 font-semibold flex-shrink-0">[WEIGHT_UP]</span>
+                            <span>Rule #082 confidence increased to 0.98 following positive reviewer endorsement on PR #1042.</span>
+                        </div>
+                        <div class="pt-2 flex items-start space-x-3 text-zinc-300">
+                            <span class="text-zinc-500 flex-shrink-0">13:45:09</span>
+                            <span class="text-amber-400 font-semibold flex-shrink-0">[HABIT_INC]</span>
+                            <span>Incremented recurrence vector for author @alex-chen on pattern: missing_logger_context.</span>
+                        </div>
+                        <div class="pt-2 flex items-start space-x-3 text-zinc-300">
+                            <span class="text-zinc-500 flex-shrink-0">11:18:24</span>
+                            <span class="text-sky-400 font-semibold flex-shrink-0">[PRECEDENT_LOG]</span>
+                            <span>Indexed consensus thread from PR #1040 regarding tenant isolation check requirements.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =========================================================
+                 VIEW: DIFF TEST SANDBOX
+                 ========================================================= -->
+            <div id="view-sandbox" class="view-panel h-full hidden p-6 overflow-auto">
+                <div class="max-w-4xl space-y-6">
+                    <div>
+                        <h1 class="text-base font-semibold text-zinc-100">Diff Test Sandbox</h1>
+                        <p class="text-xs text-zinc-500 mt-0.5">Test how the 3-tier memory engine evaluates custom code snippets and author profiles in real time.</p>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-mono text-zinc-400 uppercase">Simulated Author</label>
+                            <select id="sandbox-author-select" class="w-full bg-surface border border-line text-zinc-300 text-xs rounded-sm p-2 outline-none">
+                                <option value="alex-chen">@alex-chen (Error handling & Network tendency)</option>
+                                <option value="sarah-connor">@sarah-connor (Database & Migration tendency)</option>
+                                <option value="marcus-v">@marcus-v (Auth & Isolation tendency)</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-mono text-zinc-400 uppercase">Language Parser</label>
+                            <select class="w-full bg-surface border border-line text-zinc-300 text-xs rounded-sm p-2 outline-none">
+                                <option>TypeScript / ES2024</option>
+                                <option>Go / 1.22</option>
+                                <option>Python / 3.12</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="runSandboxTestExecution()" class="w-full py-2 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs rounded-sm transition-colors shadow-sm">
+                                Execute Memory Review
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-mono text-zinc-400 uppercase">Input Diff or Code Block</label>
+                        <textarea id="sandbox-textarea" rows="8" class="w-full bg-panel border border-line rounded-sm p-3 font-mono text-xs text-zinc-300 outline-none leading-relaxed focus:border-line-light">
+try {
+    const res = await fetch('https://api.internal.billing/v1/charge');
+    const data = await res.json();
+    return data;
+} catch (e) {
+    console.error("Failed charge:", e);
+    return null;
+}
+                        </textarea>
+                    </div>
+
+                    <!-- Sandbox Results -->
+                    <div id="sandbox-output-panel" class="border border-line bg-panel p-4 rounded-sm space-y-3 hidden">
+                        <div class="flex items-center justify-between border-b border-line pb-2">
+                            <span class="text-xs font-semibold text-zinc-200">Sandbox Memory Review Outcome</span>
+                            <span class="text-[10px] font-mono text-amber-400">2 Matches Identified</span>
+                        </div>
+                        <div class="space-y-2 text-xs">
+                            <div class="p-2.5 bg-canvas border border-line rounded-sm space-y-1">
+                                <div class="text-red-400 font-mono font-semibold text-[11px]">Flagged by Tier 1 Standard #082:</div>
+                                <div class="text-zinc-300">`console.error` found inside catch block. Production services require structured logger invocation via `Telemetry.captureException(e)`.</div>
+                            </div>
+                            <div class="p-2.5 bg-canvas border border-line rounded-sm space-y-1">
+                                <div class="text-amber-400 font-mono font-semibold text-[11px]">Flagged by Tier 2 Author Profile:</div>
+                                <div class="text-zinc-300">`fetch` invoked without explicit timeout abort controller. Author habit profile indicates recurring unconstrained network calls.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =========================================================
+                 VIEW: CI PIPELINE CONFIG
+                 ========================================================= -->
+            <div id="view-pipeline" class="view-panel h-full hidden p-6 overflow-auto">
+                <div class="max-w-4xl space-y-6">
+                    <div>
+                        <h1 class="text-base font-semibold text-zinc-100">CI/CD Pipeline Integration</h1>
+                        <p class="text-xs text-zinc-500 mt-0.5">Embed Ledger directly into your GitHub Actions workflow or pre-commit hooks to enforce memory rules on pull requests.</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-mono text-zinc-400">.github/workflows/ledger-review.yml</span>
+                            <button onclick="alert('Workflow copied to clipboard.')" class="px-2.5 py-1 bg-surface border border-line hover:border-line-light text-xs font-mono text-zinc-300 rounded-sm">Copy YAML</button>
+                        </div>
+                        <pre class="bg-panel border border-line rounded-sm p-4 text-xs font-mono text-zinc-300 leading-relaxed overflow-x-auto">
+name: Ledger Code Review Memory Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ledger-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Ledger Memory Review Engine
+        uses: ledger-review/action@v1.4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          repo_id: "enterprise/core-billing-service"
+          fail_on_severity: "blocker"
+          auto_post_suggestions: true
+                        </pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =========================================================
+                 VIEW: SETTINGS
+                 ========================================================= -->
+            <div id="view-settings" class="view-panel h-full hidden p-6 overflow-auto">
+                <div class="max-w-2xl space-y-6">
+                    <div>
+                        <h1 class="text-base font-semibold text-zinc-100">Engine Configuration</h1>
+                        <p class="text-xs text-zinc-500 mt-0.5">Configure repository synchronization, memory confidence thresholds, and active learning triggers.</p>
+                    </div>
+
+                    <div class="space-y-4 text-xs">
+                        <div class="space-y-1.5">
+                            <label class="block font-medium text-zinc-200">Connected Git Repository</label>
+                            <input type="text" value="github.com/enterprise/core-billing-service" readonly class="w-full bg-surface border border-line rounded-sm px-3 py-2 text-zinc-400 font-mono outline-none" />
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="block font-medium text-zinc-200">Confidence Threshold for Blocking Pull Requests</label>
+                            <select class="w-full bg-surface border border-line rounded-sm px-3 py-2 text-zinc-300 outline-none">
+                                <option>Strict (Require 0.90+ confidence & minimum 2 past precedents)</option>
+                                <option selected>Balanced (Require 0.75+ confidence or explicit Tier 1 rule)</option>
+                                <option>Advisory (Flag all speculative habit deviations as suggestions)</option>
+                            </select>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="block font-medium text-zinc-200">Active Learning Calibration Frequency</label>
+                            <select class="w-full bg-surface border border-line rounded-sm px-3 py-2 text-zinc-300 outline-none">
+                                <option>Immediate (Recalibrate weights upon human reviewer action)</option>
+                                <option>Batch Daily (Recalibrate weights in overnight reconciliation)</option>
+                            </select>
+                        </div>
+
+                        <div class="pt-4 border-t border-line">
+                            <button onclick="alert('Engine configuration saved.')" class="px-3 py-2 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-sm transition-colors">
+                                Save Engine Configuration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =========================================================
+                 VIEW: PRIVACY POLICY
+                 ========================================================= -->
+            <div id="view-privacy" class="view-panel h-full hidden p-8 overflow-auto">
+                <div class="max-w-3xl space-y-6 text-xs text-zinc-400 leading-relaxed">
+                    <header class="border-b border-line pb-4">
+                        <h1 class="text-lg font-semibold text-zinc-100">Privacy Policy</h1>
+                        <p class="text-zinc-500 mt-1 font-mono text-[11px]">Effective Date: September 29, 2026</p>
+                    </header>
+
+                    <section class="space-y-2">
+                        <h2 class="text-sm font-medium text-zinc-200">1. Information We Process</h2>
+                        <p>Ledger processes source code diffs, pull request metadata, git author usernames, review comments, and repository configuration files strictly to execute automated code review analysis and maintain institutional memory. Full repository clones are never permanently retained on Ledger compute workers.</p>
+                    </section>
+
+                    <section class="space-y-2">
+                        <h2 class="text-sm font-medium text-zinc-200">2. Developer Habit Profiling</h2>
+                        <p>Developer habit matrices and recurring pattern counts are computed within your organization tenant strictly to tailor automated pre-flight checks. This data is never used to train public models, nor is it exported, shared, or compared across distinct organizational boundaries.</p>
+                    </section>
+
+                    <section class="space-y-2">
+                        <h2 class="text-sm font-medium text-zinc-200">3. Memory Retention and Data Purging</h2>
+                        <p>Transient pull request diffs are flushed from working memory immediately after analysis completion. Derived institutional rules, precedent logs, and developer profile matrices are stored in tenant-isolated encrypted databases. Repository administrators retain the right to purge individual rules or wipe organization memory at any time via the console.</p>
+                    </section>
+
+                    <section class="space-y-2">
+                        <h2 class="text-sm font-medium text-zinc-200">4. Security Standards</h2>
+                        <p>All communication with your Git hosting platform occurs over encrypted TLS 1.3 channels. We do not sell, rent, or monetize repository source code or developer telemetry to any third party entities.</p>
+                    </section>
+                </div>
+            </div>
+
+            <!-- =========================================================
+                 VIEW: TERMS & CONDITIONS
+                 ========================================================= -->
+            <div id="view-terms" class="view-panel h-full hidden p-8 overflow-auto">
+                <div class="max-w-3xl space-y-6 text-xs text-zinc-400 leading-relaxed">
+                    <header class="border-b border-line pb-4">
+                        <h1 class="text-lg font-semibold text-zinc-100">Terms & Conditions</h1>
+                        <p class="text-zinc-500 mt-1 font-mono text-[11px]">Effective Date: September 29, 2026</p>
+                    </header>
+
+                    <section class="space-y-2">
+                        <h2 class="text-sm font-medium text-zinc-200">1. Acceptance of Terms</h2>
+                        <p>By connecting a repository to Ledger or running the Ledger review engine in your software development lifecycle, you agree to comply with these terms. If you are accepting on behalf of an organization, you represent that you possess the authority to bind that entity.</p>
+                    </section>
+
+                    <section class="space-y-2">
+                        <h2 class="text-sm font-medium text-zinc-200">2. Nature of Service and Advisory Disclaimer</h2>
+                        <p>Ledger provides automated code review feedback based on statistical and historical repository memory patterns. Output generated by Ledger constitutes technical suggestions only and does not replace human code audits, formal security penetration testing, or architectural verification.</p>
+                    </section>
+
+                    <section class="space-y-2">
+                        <h2 class="text-sm font-medium text-zinc-200">3. Limitation of Liability</h2>
+                        <p>In no event shall Ledger or its contributors be held liable for any direct, indirect, incidental, or consequential damages including production outages, data loss, security vulnerabilities, or business interruptions arising from code merged with or without Ledger review commentary.</p>
+                    </section>
+
+                    <section class="space-y-2">
+                        <h2 class="text-sm font-medium text-zinc-200">4. Termination</h2>
+                        <p>You may revoke repository access at any time. Upon workspace termination, all tenant memory vectors, habit profiles, and rule indices are scheduled for permanent deletion within 30 days.</p>
+                    </section>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- =========================================================
+         MODALS
+         ========================================================= -->
+
+    <!-- Modal: Dismiss Finding with Rationale -->
+    <div id="modal-dismiss" class="fixed inset-0 backdrop-overlay z-50 flex items-center justify-center hidden">
+        <div class="bg-panel border border-line rounded-sm w-[480px] p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-line pb-3">
+                <h3 class="text-sm font-semibold text-zinc-100">Dismiss Review Finding</h3>
+                <button onclick="closeModal('modal-dismiss')" class="text-zinc-500 hover:text-zinc-300 font-mono text-xs">✕</button>
+            </div>
+            <p class="text-xs text-zinc-400 leading-relaxed">
+                Provide a technical rationale for overriding this finding. Ledger will record this decision in Tier 3 to calibrate future rule confidence and eliminate false positives.
+            </p>
+            <div class="space-y-2 text-xs">
+                <label class="block font-medium text-zinc-300">Reason for Override</label>
+                <select id="dismiss-reason" class="w-full bg-surface border border-line rounded-sm p-2 text-zinc-300 outline-none">
+                    <option value="legacy-exception">Intentional exception for legacy subsystem</option>
+                    <option value="rule-outdated">Rule is outdated and should be deprecated</option>
+                    <option value="false-positive">False positive pattern match</option>
+                    <option value="emergency-hotfix">Emergency production hotfix override</option>
+                </select>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2 border-t border-line">
+                <button onclick="closeModal('modal-dismiss')" class="px-3 py-1.5 bg-surface text-zinc-300 text-xs font-medium rounded-sm hover:bg-surface-raised">Cancel</button>
+                <button onclick="executeDismissal()" class="px-3 py-1.5 bg-zinc-100 text-zinc-950 text-xs font-semibold rounded-sm hover:bg-white">Record & Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add New Team Rule -->
+    <div id="modal-add-rule" class="fixed inset-0 backdrop-overlay z-50 flex items-center justify-center hidden">
+        <div class="bg-panel border border-line rounded-sm w-[520px] p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-line pb-3">
+                <h3 class="text-sm font-semibold text-zinc-100">Add Global Team Standard (Tier 1)</h3>
+                <button onclick="closeModal('modal-add-rule')" class="text-zinc-500 hover:text-zinc-300 font-mono text-xs">✕</button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div class="space-y-1">
+                    <label class="block font-medium text-zinc-300">Standard Description</label>
+                    <input type="text" id="rule-desc-input" placeholder="e.g. Disallow unparameterized SQL queries in repository services" class="w-full bg-surface border border-line rounded-sm p-2 text-zinc-300 outline-none focus:border-line-light" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="block font-medium text-zinc-300">Enforcement Severity</label>
+                        <select id="rule-sev-input" class="w-full bg-surface border border-line rounded-sm p-2 text-zinc-300 outline-none">
+                            <option value="Blocker">Blocker (Fail CI)</option>
+                            <option value="Warning">Warning (Advisory)</option>
+                            <option value="Suggestion">Suggestion</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block font-medium text-zinc-300">Reference PR / RFC</label>
+                        <input type="text" id="rule-source-input" placeholder="PR-512" class="w-full bg-surface border border-line rounded-sm p-2 text-zinc-300 outline-none font-mono" />
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2 border-t border-line">
+                <button onclick="closeModal('modal-add-rule')" class="px-3 py-1.5 bg-surface text-zinc-300 text-xs font-medium rounded-sm hover:bg-surface-raised">Cancel</button>
+                <button onclick="saveRule()" class="px-3 py-1.5 bg-zinc-100 text-zinc-950 text-xs font-semibold rounded-sm hover:bg-white">Create Standard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Command Palette (Ctrl+K) -->
+    <div id="modal-cmd" class="fixed inset-0 backdrop-overlay z-50 flex items-start justify-center pt-24 hidden" onclick="if(event.target === this) closeModal('modal-cmd')">
+        <div class="bg-panel border border-line rounded-sm w-[560px] overflow-hidden shadow-2xl">
+            <div class="p-3 border-b border-line flex items-center space-x-2">
+                <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="cmd-query-input" oninput="handleCommandSearch(this.value)" placeholder="Search memory rules, developer habits, or navigate views..." class="w-full bg-transparent text-xs text-zinc-200 outline-none font-mono" autofocus />
+                <kbd class="px-1.5 py-0.5 bg-surface text-zinc-400 rounded text-[10px] font-mono">ESC</kbd>
+            </div>
+            <div class="max-h-72 overflow-y-auto p-2 space-y-1 text-xs font-mono" id="cmd-list">
+                <button onclick="navigate('inspector'); closeModal('modal-cmd')" class="w-full text-left px-3 py-2 rounded-sm hover:bg-surface text-zinc-300 flex justify-between items-center">
+                    <span>Navigate: Diff Inspector</span>
+                    <span class="text-[10px] text-zinc-500">View</span>
+                </button>
+                <button onclick="navigate('live-graph'); closeModal('modal-cmd')" class="w-full text-left px-3 py-2 rounded-sm hover:bg-surface text-zinc-300 flex justify-between items-center">
+                    <span>Navigate: Memory Graph Visualizer</span>
+                    <span class="text-[10px] text-zinc-500">Graph</span>
+                </button>
+                <button onclick="navigate('tier1'); closeModal('modal-cmd')" class="w-full text-left px-3 py-2 rounded-sm hover:bg-surface text-zinc-300 flex justify-between items-center">
+                    <span>Rule #082: Telemetry Logger standard</span>
+                    <span class="text-[10px] text-zinc-500">Tier 1</span>
+                </button>
+                <button onclick="navigate('tier2'); closeModal('modal-cmd')" class="w-full text-left px-3 py-2 rounded-sm hover:bg-surface text-zinc-300 flex justify-between items-center">
+                    <span>Author Profile: @alex-chen (Node/TS)</span>
+                    <span class="text-[10px] text-zinc-500">Tier 2</span>
+                </button>
+                <button onclick="navigate('tier3'); closeModal('modal-cmd')" class="w-full text-left px-3 py-2 rounded-sm hover:bg-surface text-zinc-300 flex justify-between items-center">
+                    <span>Precedent PR #870: 3000ms HTTP timeout</span>
+                    <span class="text-[10px] text-zinc-500">Tier 3</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         STATE MANAGEMENT & APPLICATION LOGIC
+         ========================================================= -->
+    <script>
+        // Reactive Core Data
+        const db = {
+            activeView: 'inspector',
+            activeFileIndex: 0,
+            diffViewMode: 'unified',
+            dismissTargetId: null,
+            rules: [
+                { id: '#082', desc: 'All backend transaction handlers must catch errors with Telemetry.captureException', source: 'PR-441', severity: 'Blocker', weight: 0.98 },
+                { id: '#054', desc: 'Database queries in loops must use batch operations or data loader pattern', source: 'PR-312', severity: 'Blocker', weight: 0.95 },
+                { id: '#031', desc: 'React useEffect hooks must declare all reactive dependencies explicitly without eslint-disable', source: 'PR-118', severity: 'Warning', weight: 0.84 },
+                { id: '#019', desc: 'Downstream HTTP external integrations require explicit timeout definitions under 5000ms', source: 'PR-092', severity: 'Warning', weight: 0.79 }
+            ],
+            files: [
+                {
+                    path: 'src/services/billing/payment_processor.ts',
+                    findings: 2,
+                    rows: [
+                        { type: 'neutral', oldLine: 41, newLine: 41, code: '<span class="token-kwd">import</span> { StripeClient } <span class="token-kwd">from</span> <span class="token-str">\'@stripe/stripe-node\'</span>;' },
+                        { type: 'neutral', oldLine: 42, newLine: 42, code: '<span class="token-kwd">import</span> { Metrics, Telemetry } <span class="token-kwd">from</span> <span class="token-str">\'../telemetry\'</span>;' },
+                        { type: 'neutral', oldLine: 43, newLine: 43, code: '' },
+                        { type: 'neutral', oldLine: 44, newLine: 44, code: '<span class="token-kwd">export async function</span> <span class="token-fn">processCharge</span>(amount: <span class="token-type">number</span>, token: <span class="token-type">string</span>): <span class="token-type">Promise&lt;ChargeResult&gt;</span> {' },
+                        { type: 'neutral', oldLine: 45, newLine: 45, code: '  <span class="token-kwd">try</span> {' },
+                        { type: 'removed', oldLine: 46, newLine: '', code: '    <span class="token-kwd">const</span> charge = <span class="token-kwd">await</span> StripeClient.charges.<span class="token-fn">create</span>({ amount, source: token });' },
+                        { type: 'added', oldLine: '', newLine: 46, code: '    <span class="token-kwd">const</span> charge = <span class="token-kwd">await</span> StripeClient.charges.<span class="token-fn">create</span>({ amount, source: token, timeout: <span class="token-num">5000</span> });', flaggedId: 2 },
+                        { type: 'neutral', oldLine: 47, newLine: 47, code: '    <span class="token-kwd">return</span> { success: <span class="token-kwd">true</span>, id: charge.id };' },
+                        { type: 'neutral', oldLine: 48, newLine: 48, code: '  } <span class="token-kwd">catch</span> (err) {' },
+                        { type: 'flagged', oldLine: 49, newLine: 49, code: '    console.<span class="token-fn">error</span>(<span class="token-str">"Payment error encountered:"</span>, err);', flaggedId: 1 },
+                        { type: 'added', oldLine: '', newLine: 50, code: '    Metrics.<span class="token-fn">increment</span>(<span class="token-str">\'payment.failure.count\'</span>);' },
+                        { type: 'neutral', oldLine: 50, newLine: 51, code: '    <span class="token-kwd">return</span> { success: <span class="token-kwd">false</span>, error: <span class="token-str">\'PAYMENT_FAILED\'</span> };' },
+                        { type: 'neutral', oldLine: 51, newLine: 52, code: '  }' },
+                        { type: 'neutral', oldLine: 52, newLine: 53, code: '}' }
+                    ]
+                },
+                {
+                    path: 'src/services/billing/billing_routes.ts',
+                    findings: 0,
+                    rows: [
+                        { type: 'neutral', oldLine: 1, newLine: 1, code: '<span class="token-kwd">import</span> { Router } <span class="token-kwd">from</span> <span class="token-str">\'express\'</span>;' },
+                        { type: 'neutral', oldLine: 2, newLine: 2, code: '<span class="token-kwd">import</span> { processCharge } <span class="token-kwd">from</span> <span class="token-str">\'./payment_processor\'</span>;' },
+                        { type: 'neutral', oldLine: 3, newLine: 3, code: '' },
+                        { type: 'neutral', oldLine: 4, newLine: 4, code: '<span class="token-kwd">export const</span> billingRouter = <span class="token-fn">Router</span>();' },
+                        { type: 'added', oldLine: '', newLine: 5, code: 'billingRouter.<span class="token-fn">post</span>(<span class="token-str">\'/v1/charge\'</span>, <span class="token-kwd">async</span> (req, res) =&gt; {' },
+                        { type: 'added', oldLine: '', newLine: 6, code: '  <span class="token-kwd">const</span> outcome = <span class="token-kwd">await</span> <span class="token-fn">processCharge</span>(req.body.amount, req.body.token);' },
+                        { type: 'added', oldLine: '', newLine: 7, code: '  <span class="token-kwd">return</span> res.<span class="token-fn">json</span>(outcome);' },
+                        { type: 'added', oldLine: '', newLine: 8, code: '});' }
+                    ]
+                }
+            ]
+        };
+
+        // Navigation Engine
+        function navigate(viewName) {
+            db.activeView = viewName;
+            document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+
+            const target = document.getElementById('view-' + viewName);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(b => {
+                b.classList.remove('bg-surface', 'border-line', 'text-zinc-100');
+                b.classList.add('text-zinc-400', 'border-transparent');
+            });
+
+            const activeBtn = document.getElementById('nav-' + viewName);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-zinc-400', 'border-transparent');
+                activeBtn.classList.add('bg-surface', 'border-line', 'text-zinc-100');
+            }
+        }
+
+        // Render Diff with Inline Findings
+        function renderDiffViewer() {
+            const container = document.getElementById('diff-table-container');
+            const file = db.files[db.activeFileIndex];
+            document.getElementById('diff-file-title').innerText = file.path;
+
+            let html = '';
+            file.rows.forEach(row => {
+                let rowCls = 'hover:bg-surface/40 flex items-start';
+                let gutterCls = 'text-zinc-600';
+                let indicator = '&nbsp;';
+
+                if (row.type === 'added') {
+                    rowCls += ' diff-row-added text-zinc-200';
+                    indicator = '+';
+                    gutterCls = 'text-emerald-500/70';
+                } else if (row.type === 'removed') {
+                    rowCls += ' diff-row-removed text-zinc-400';
+                    indicator = '-';
+                    gutterCls = 'text-red-500/70';
+                } else if (row.type === 'flagged') {
+                    rowCls += ' diff-row-flagged text-amber-200';
+                    indicator = '!';
+                    gutterCls = 'text-amber-500 font-bold';
+                } else {
+                    rowCls += ' text-zinc-300';
+                }
+
+                html += `
+                    <div class="${rowCls} px-2 py-0.5 border-b border-line/40">
+                        <div class="gutter-cell ${gutterCls}">${row.oldLine || ''}</div>
+                        <div class="gutter-cell ${gutterCls}">${row.newLine || ''}</div>
+                        <div class="w-4 select-none font-bold text-center flex-shrink-0 ${indicator === '+' ? 'text-emerald-400' : indicator === '-' ? 'text-red-400' : indicator === '!' ? 'text-amber-400' : 'text-zinc-600'}">${indicator}</div>
+                        <div class="flex-1 whitespace-pre pl-2 overflow-x-auto">${row.code || '&nbsp;'}</div>
+                    </div>
+                `;
+
+                // Inline Expandable Thread for flagged lines
+                if (row.flaggedId === 1) {
+                    html += `
+                        <div class="bg-surface border-y border-line-light p-3 pl-24 my-0.5 space-y-2" id="inline-thread-1">
+                            <div class="flex items-center justify-between">
+                                <span class="px-1.5 py-0.2 bg-red-500/10 border border-red-500/20 text-red-400 font-mono text-[10px] font-semibold">BLOCKER: TIER 1 STANDARD #082</span>
+                                <span class="text-zinc-500 font-mono text-[10px]">Context: Line 49 Catch Block</span>
+                            </div>
+                            <div class="text-xs text-zinc-200 font-sans leading-relaxed">
+                                Direct <code class="text-red-300 bg-red-950/40 px-1 py-0.5 rounded-sm">console.error</code> calls are banned in billing modules. Exceptions must be funneled through <code class="text-emerald-300 bg-emerald-950/40 px-1 py-0.5 rounded-sm">Telemetry.captureException(err)</code>.
+                            </div>
+                            <div class="bg-canvas border border-line p-2 rounded-sm text-[11px] font-mono text-zinc-400">
+                                <strong>Suggested Replacement:</strong><br/>
+                                <span class="text-emerald-400">+   Telemetry.captureException(err, { context: 'processCharge' });</span>
+                            </div>
+                            <div class="flex space-x-2 pt-1 font-sans">
+                                <button onclick="acceptInlineFinding(1)" class="px-2.5 py-1 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs rounded-sm">Apply Fix to PR</button>
+                                <button onclick="openDismissModal(1)" class="px-2.5 py-1 bg-panel hover:bg-surface-raised text-zinc-300 text-xs font-medium rounded-sm border border-line">Dismiss</button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (row.flaggedId === 2) {
+                    html += `
+                        <div class="bg-surface border-y border-line-light p-3 pl-24 my-0.5 space-y-2" id="inline-thread-2">
+                            <div class="flex items-center justify-between">
+                                <span class="px-1.5 py-0.2 bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-[10px] font-semibold">ADVISORY: TIER 3 PRECEDENT MATCH</span>
+                                <span class="text-zinc-500 font-mono text-[10px]">Context: Line 46 Timeout Config</span>
+                            </div>
+                            <div class="text-xs text-zinc-200 font-sans leading-relaxed">
+                                Timeout set to 5000ms. Team consensus in PR-870 recommends 3000ms max for Stripe upstream calls to prevent ALB worker exhaustion.
+                            </div>
+                            <div class="flex space-x-2 pt-1 font-sans">
+                                <button onclick="acceptInlineFinding(2)" class="px-2.5 py-1 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs rounded-sm">Adjust to 3000ms</button>
+                                <button onclick="openDismissModal(2)" class="px-2.5 py-1 bg-panel hover:bg-surface-raised text-zinc-300 text-xs font-medium rounded-sm border border-line">Keep 5000ms</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            container.innerHTML = html;
+            renderInspectorCards();
+        }
+
+        // Render Right Side Findings Cards
+        function renderInspectorCards() {
+            const container = document.getElementById('inspector-cards-container');
+            container.innerHTML = `
+                <div class="border border-line bg-surface p-3 rounded-sm space-y-2.5" id="card-1">
+                    <div class="flex items-center justify-between">
+                        <span class="px-1.5 py-0.2 bg-red-500/10 border border-red-500/20 text-red-400 font-mono text-[10px] font-semibold">RULE #082 VIOLATION</span>
+                        <span class="text-zinc-500 font-mono text-[10px]">Line 49</span>
+                    </div>
+                    <p class="text-xs text-zinc-200 font-medium leading-relaxed">
+                        Direct <code class="text-zinc-300">console.error</code> prohibited. Must route through Telemetry service.
+                    </p>
+                    <div class="bg-canvas border border-line p-2 rounded-sm text-[11px] text-zinc-400 space-y-1">
+                        <div><strong>Origin:</strong> PR-441 Datadog migration.</div>
+                        <div><strong>Author History:</strong> 3 previous occurrences.</div>
+                    </div>
+                    <div class="flex space-x-2 pt-1">
+                        <button onclick="acceptInlineFinding(1)" class="flex-1 py-1.5 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs rounded-sm">Post Fix</button>
+                        <button onclick="openDismissModal(1)" class="px-2.5 py-1.5 bg-panel hover:bg-surface-raised text-zinc-300 text-xs font-medium rounded-sm border border-line">Dismiss</button>
+                    </div>
+                </div>
+
+                <div class="border border-line bg-surface p-3 rounded-sm space-y-2.5" id="card-2">
+                    <div class="flex items-center justify-between">
+                        <span class="px-1.5 py-0.2 bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-[10px] font-semibold">PRECEDENT MATCH</span>
+                        <span class="text-zinc-500 font-mono text-[10px]">Line 46</span>
+                    </div>
+                    <p class="text-xs text-zinc-200 font-medium leading-relaxed">
+                        Timeout is 5000ms. Standard is 3000ms max.
+                    </p>
+                    <div class="bg-canvas border border-line p-2 rounded-sm text-[11px] text-zinc-400">
+                        <strong>Precedent Rationale:</strong> PR-870 standardized 3000ms timeout for load balancer headroom.
+                    </div>
+                    <div class="flex space-x-2 pt-1">
+                        <button onclick="acceptInlineFinding(2)" class="flex-1 py-1.5 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs rounded-sm">Adjust</button>
+                        <button onclick="openDismissModal(2)" class="px-2.5 py-1.5 bg-panel hover:bg-surface-raised text-zinc-300 text-xs font-medium rounded-sm border border-line">Override</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // File Switcher
+        function changeFile(idx) {
+            db.activeFileIndex = idx;
+            document.getElementById('file-btn-0').className = idx === 0
+                ? 'w-full text-left px-2 py-1.5 rounded-sm bg-surface text-zinc-200 border border-line flex items-center justify-between'
+                : 'w-full text-left px-2 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-300 border border-transparent flex items-center justify-between';
+            document.getElementById('file-btn-1').className = idx === 1
+                ? 'w-full text-left px-2 py-1.5 rounded-sm bg-surface text-zinc-200 border border-line flex items-center justify-between'
+                : 'w-full text-left px-2 py-1.5 rounded-sm text-zinc-400 hover:bg-surface hover:text-zinc-300 border border-transparent flex items-center justify-between';
+            renderDiffViewer();
+        }
+
+        // Toggle Split/Unified View Mode
+        function setDiffView(mode) {
+            db.diffViewMode = mode;
+            document.getElementById('btn-unified').className = mode === 'unified'
+                ? 'px-2.5 py-1 bg-surface text-zinc-100 font-mono text-[11px]'
+                : 'px-2.5 py-1 bg-panel text-zinc-500 hover:text-zinc-300 font-mono text-[11px]';
+            document.getElementById('btn-split').className = mode === 'split'
+                ? 'px-2.5 py-1 bg-surface text-zinc-100 font-mono text-[11px]'
+                : 'px-2.5 py-1 bg-panel text-zinc-500 hover:text-zinc-300 font-mono text-[11px]';
+        }
+
+        // Render Tier 1 Rules Table
+        function renderRulesList() {
+            const tbody = document.getElementById('tier1-rules-tbody');
+            let html = '';
+            db.rules.forEach(r => {
+                let badgeCls = r.severity === 'Blocker'
+                    ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+
+                html += `
+                    <tr class="hover:bg-surface/50">
+                        <td class="py-3 px-4 font-mono text-zinc-500">${r.id}</td>
+                        <td class="py-3 px-4 font-medium text-zinc-200">${r.desc}</td>
+                        <td class="py-3 px-4 font-mono text-zinc-400">${r.source}</td>
+                        <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-sm border font-mono text-[10px] ${badgeCls}">${r.severity}</span></td>
+                        <td class="py-3 px-4 font-mono text-zinc-400">${r.weight.toFixed(2)}</td>
+                        <td class="py-3 px-4"><button onclick="deleteRule('${r.id}')" class="text-zinc-500 hover:text-red-400 font-mono">Delete</button></td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+            document.getElementById('tier1-sidebar-count').innerText = `${db.rules.length} rules`;
+        }
+
+        // Actions: Accept / Dismiss
+        function acceptInlineFinding(id) {
+            const thread = document.getElementById('inline-thread-' + id);
+            const card = document.getElementById('card-' + id);
+
+            if (thread) {
+                thread.innerHTML = `
+                    <div class="text-xs font-mono text-emerald-400 py-1 flex items-center space-x-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Fix suggestion committed to PR #1042. Rule weight reinforced.</span>
+                    </div>
+                `;
+            }
+            if (card) card.remove();
+
+            pushCalibrationLog(`[FEEDBACK_ACCEPT] Finding #${id} accepted. Rule weight reinforced.`);
+        }
+
+        function openDismissModal(id) {
+            db.dismissTargetId = id;
+            document.getElementById('modal-dismiss').classList.remove('hidden');
+        }
+
+        function executeDismissal() {
+            const reason = document.getElementById('dismiss-reason').value;
+            const id = db.dismissTargetId;
+            closeModal('modal-dismiss');
+
+            const thread = document.getElementById('inline-thread-' + id);
+            const card = document.getElementById('card-' + id);
+            if (thread) thread.remove();
+            if (card) card.remove();
+
+            pushCalibrationLog(`[OVERRIDE_RECORDED] Finding #${id} dismissed (${reason}). Negative constraint indexed.`);
+        }
+
+        function pushCalibrationLog(msg) {
+            const container = document.getElementById('calibration-log-list');
+            if (container) {
+                const now = new Date().toTimeString().split(' ')[0];
+                const div = document.createElement('div');
+                div.className = 'pt-2 flex items-start space-x-3 text-zinc-300';
+                div.innerHTML = `
+                    <span class="text-zinc-500 flex-shrink-0">${now}</span>
+                    <span class="text-emerald-400 font-semibold flex-shrink-0">[UPDATE]</span>
+                    <span>${msg}</span>
+                `;
+                container.prepend(div);
+            }
+        }
+
+        // Trigger Analysis Runner
+        function runAuditSequence() {
+            const btn = document.getElementById('btn-audit');
+            btn.innerHTML = `
+                <svg class="w-3 h-3 mr-1.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="10"/></svg>
+                <span>Evaluating Memory Tiers...</span>
+            `;
+            setTimeout(() => {
+                btn.innerHTML = `
+                    <svg class="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <span>Trigger Ledger Review</span>
+                `;
+                pushCalibrationLog('[SCAN_COMPLETE] Evaluated 2 files against 4 Tier 1 rules and 14 Tier 3 precedents.');
+                alert('Review Complete: 2 findings identified and mapped to historical memory.');
+            }, 600);
+        }
+
+        // Sandbox Run
+        function runSandboxTestExecution() {
+            document.getElementById('sandbox-output-panel').classList.remove('hidden');
+        }
+
+        // Modal Controls
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function openNewRuleModal() {
+            document.getElementById('modal-add-rule').classList.remove('hidden');
+        }
+
+        function saveRule() {
+            const desc = document.getElementById('rule-desc-input').value;
+            const sev = document.getElementById('rule-sev-input').value;
+            const src = document.getElementById('rule-source-input').value || 'PR-Manual';
+
+            if (!desc) {
+                alert('Please enter a description.');
+                return;
+            }
+
+            const id = `#${Math.floor(100 + Math.random() * 900)}`;
+            db.rules.push({ id, desc, source: src, severity: sev, weight: 0.90 });
+            renderRulesList();
+            closeModal('modal-add-rule');
+            document.getElementById('rule-desc-input').value = '';
+            pushCalibrationLog(`[NEW_STANDARD] Created Tier 1 rule ${id}: ${desc}`);
+        }
+
+        function deleteRule(id) {
+            db.rules = db.rules.filter(r => r.id !== id);
+            renderRulesList();
+            pushCalibrationLog(`[RULE_REMOVED] Rule ${id} deleted by maintainer.`);
+        }
+
+        // Command Palette
+        function openCommandPalette() {
+            document.getElementById('modal-cmd').classList.remove('hidden');
+            document.getElementById('cmd-query-input').focus();
+        }
+
+        window.addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                openCommandPalette();
+            }
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.backdrop-overlay').forEach(m => m.classList.add('hidden'));
+            }
+        });
+
+        function handleCommandSearch(val) {
+            const q = val.toLowerCase();
+            const list = document.getElementById('cmd-list');
+            const items = [
+                { label: 'Navigate: Diff Inspector', view: 'inspector', tag: 'View' },
+                { label: 'Navigate: Memory Graph Visualizer', view: 'live-graph', tag: 'Graph' },
+                { label: 'Navigate: PR Queue', view: 'prs', tag: 'View' },
+                { label: 'Navigate: Diff Sandbox', view: 'sandbox', tag: 'Tool' },
+                { label: 'Rule #082: Telemetry Logger standard', view: 'tier1', tag: 'Tier 1' },
+                { label: 'Rule #054: Database batch queries', view: 'tier1', tag: 'Tier 1' },
+                { label: 'Author Profile: @alex-chen (Node/TS)', view: 'tier2', tag: 'Tier 2' },
+                { label: 'Precedent PR #870: 3000ms HTTP timeout', view: 'tier3', tag: 'Tier 3' },
+                { label: 'View: Privacy Policy', view: 'privacy', tag: 'Legal' },
+                { label: 'View: Terms & Conditions', view: 'terms', tag: 'Legal' }
+            ];
+
+            const filtered = items.filter(i => i.label.toLowerCase().includes(q));
+            list.innerHTML = filtered.map(i => `
+                <button onclick="navigate('${i.view}'); closeModal('modal-cmd')" class="w-full text-left px-3 py-2 rounded-sm hover:bg-surface text-zinc-300 flex justify-between items-center">
+                    <span>${i.label}</span>
+                    <span class="text-[10px] text-zinc-500">${i.tag}</span>
+                </button>
+            `).join('');
+        }
+
+        function handleRepoSwitch(val) {
+            pushCalibrationLog(`[WORKSPACE_CHANGE] Switched workspace context to ${val}. Loaded tenant vector store.`);
+        }
+
+        // Initialization on DOM Load
+        window.addEventListener('DOMContentLoaded', () => {
+            renderDiffViewer();
+            renderRulesList();
+            navigate('inspector');
+        });
+    </script>
+</body>
+</html>
